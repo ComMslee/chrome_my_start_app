@@ -17,7 +17,7 @@ const SPOTIFY_API = 'https://api.spotify.com/v1';
 const POLL_INTERVAL_NAME = 'spotify-poll';
 const POLL_INTERVAL_MINUTES = 0.05; // ~3 seconds
 
-let favoriteCheckDisabled = false;
+// favoriteCheckDisabled은 chrome.storage.local에 영속 저장 (서비스 워커 재시작 대비)
 
 // ---- PKCE Helpers ----
 
@@ -84,7 +84,7 @@ async function startAuthFlow() {
 
           const tokens = await exchangeCodeForTokens(code, codeVerifier, redirectUrl);
           await saveTokens(tokens);
-          favoriteCheckDisabled = false;
+          await chrome.storage.local.remove('favoriteDisabled');
           startPolling();
           resolve(tokens);
         } catch (err) {
@@ -230,12 +230,14 @@ async function getCurrentPlayback() {
 }
 
 async function checkIsFavorite(trackId) {
-  if (favoriteCheckDisabled) return false;
+  const { favoriteDisabled } = await chrome.storage.local.get('favoriteDisabled');
+  if (favoriteDisabled) return false;
+
   const response = await spotifyFetch(`/me/tracks/contains?ids=${trackId}`);
   if (!response.ok) {
     if (response.status === 403) {
-      favoriteCheckDisabled = true;
-      console.warn('checkIsFavorite: 403 Forbidden — user-library-read 스코프 누락. 재로그인 필요.');
+      await chrome.storage.local.set({ favoriteDisabled: true });
+      console.warn('checkIsFavorite: 403 — 재로그인 필요 (user-library-read 스코프 누락)');
     } else {
       console.error('checkIsFavorite failed:', response.status, await response.text().catch(() => ''));
     }
