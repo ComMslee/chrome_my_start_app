@@ -236,8 +236,9 @@ async function checkIsFavorite(trackId) {
   const response = await spotifyFetch(`/me/tracks/contains?ids=${trackId}`);
   if (!response.ok) {
     if (response.status === 403) {
-      await chrome.storage.local.set({ favoriteDisabled: true });
-      console.warn('checkIsFavorite: 403 — 재로그인 필요 (user-library-read 스코프 누락)');
+      // 스코프 없는 토큰 → 전체 로그아웃 처리 (팝업이 로그인 화면으로 전환됨)
+      await chrome.storage.local.remove(['accessToken', 'refreshToken', 'expiresAt', 'playbackState', 'favoriteDisabled']);
+      stopPolling();
     } else {
       console.error('checkIsFavorite failed:', response.status, await response.text().catch(() => ''));
     }
@@ -253,6 +254,10 @@ async function toggleFavorite(trackId, currentlyFavorite) {
     method,
     body: JSON.stringify({ ids: [trackId] }),
   });
+  if (!response.ok && response.status === 403) {
+    await chrome.storage.local.remove(['accessToken', 'refreshToken', 'expiresAt', 'playbackState', 'favoriteDisabled']);
+    stopPolling();
+  }
   return response.ok;
 }
 
@@ -394,7 +399,8 @@ async function handleMessage(message) {
       const stateData = await chrome.storage.local.get(['playbackState']);
       const ps = stateData.playbackState;
       if (!ps) return { error: 'No track playing' };
-      await toggleFavorite(ps.trackId, ps.isFavorite);
+      const ok = await toggleFavorite(ps.trackId, ps.isFavorite);
+      if (!ok) return { state: ps }; // 실패 시 상태 그대로 반환
       ps.isFavorite = !ps.isFavorite;
       await chrome.storage.local.set({ playbackState: ps });
       updateIcon(ps.isFavorite);
