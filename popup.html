@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-view" class="view hidden">
+    <div class="login-container">
+      <svg class="spotify-logo" viewBox="0 0 24 24" width="48" height="48">
+        <circle cx="12" cy="12" r="12" fill="#1DB954"/>
+        <path d="M17.2 16.5c-.2 0-.3-.1-.5-.2-2.2-1.3-4.8-2-7.6-2-.8 0-1.6.1-2.4.2-.3.1-.6-.1-.6-.4-.1-.3.1-.6.4-.6.9-.2 1.7-.3 2.6-.3 3 0 5.9.7 8.3 2.2.3.2.3.5.2.8-.1.2-.3.3-.4.3zm1.1-3c-.2 0-.3-.1-.5-.2-2.6-1.6-5.8-2.4-9.1-2.4-1 0-2 .1-2.9.3-.3.1-.6-.1-.7-.4-.1-.3.1-.6.4-.7 1-.2 2.1-.3 3.2-.3 3.6 0 7 .9 9.8 2.6.3.2.4.5.2.8-.1.2-.3.3-.4.3zm1.3-3.4c-.2 0-.3-.1-.4-.1C16 8 12.4 7.2 8.8 7.2c-1.2 0-2.4.1-3.5.4-.3.1-.6-.1-.7-.4-.1-.3.1-.6.4-.7C6.2 6.1 7.5 6 8.8 6c3.8 0 7.7.8 10.8 2.4.3.1.4.5.2.8-.1.2-.3.3-.4.3z" fill="white"/>
+      </svg>
+      <p class="login-text">Spotify에 연결하여<br>음악을 컨트롤하세요</p>
+      <button id="login-btn" class="login-btn">Spotify 연결</button>
+    </div>
+  </div>
+
+  <!-- Player Screen -->
+  <div id="player-view" class="view hidden">
+    <!-- Album Art -->
+    <div class="album-art-container">
+      <img id="album-art" class="album-art" src="" alt="Album Art">
+    </div>
+
+    <!-- Track Info -->
+    <div class="track-info">
+      <div class="track-details">
+        <div id="track-name" class="track-name">—</div>
+        <div id="artist-name" class="artist-name">—</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="prev-btn" class="control-btn" title="이전곡">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+        </svg>
+      </button>
+      <button id="play-pause-btn" class="control-btn play-btn" title="재생/일시정지">
+        <svg id="play-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        <svg id="pause-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor" class="hidden">
+          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+        </svg>
+      </button>
+      <button id="next-btn" class="control-btn" title="다음곡">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+        </svg>
+      </button>
+      <button id="favorite-btn" class="control-btn favorite-btn" title="좋아요">
+        <svg id="heart-empty" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <svg id="heart-filled" viewBox="0 0 24 24" width="20" height="20" fill="#1DB954" class="hidden">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+      <span id="current-time" class="time">0:00</span>
+      <div id="progress-bar" class="progress-bar">
+        <div id="progress-filled" class="progress-filled"></div>
+        <div id="progress-handle" class="progress-handle"></div>
+      </div>
+      <span id="total-time" class="time">0:00</span>
+    </div>
+
+    <!-- Logout -->
+    <div class="footer">
+      <button id="logout-btn" class="logout-btn">로그아웃</button>
+    </div>
+  </div>
+
+  <!-- No Playback -->
+  <div id="no-playback-view" class="view hidden">
+    <p class="no-playback-text">재생 중인 곡이 없습니다</p>
+    <p class="no-playback-sub">Spotify에서 음악을 재생해주세요</p>
+    <button id="logout-btn-nop" class="logout-btn" style="margin-top:12px">로그아웃</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-view" class="view">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
