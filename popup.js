@@ -189,11 +189,6 @@ async function init() {
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);
-  // 403으로 토큰이 강제 삭제되면 로그인 화면으로 전환
-  if (changes.accessToken && !('newValue' in changes.accessToken)) {
-    stopProgressTimer();
-    showView('login');
-  }
 });
 
 init();
