@@ -309,6 +309,10 @@ async function pollPlaybackState() {
     const trackId = playback.item.id;
     const isFavorite = await checkIsFavorite(trackId);
 
+    // checkIsFavorite가 403으로 토큰을 지웠을 수 있으므로 재확인
+    const authCheck = await chrome.storage.local.get(['accessToken']);
+    if (!authCheck.accessToken) return;
+
     const state = {
       trackId: trackId,
       trackName: playback.item.name,
@@ -327,6 +331,8 @@ async function pollPlaybackState() {
     // Update icon based on favorite status
     updateIcon(isFavorite);
   } catch (err) {
+    // 토큰 없음 / 갱신 실패는 정상적인 로그아웃 상태 — 조용히 종료
+    if (err.message === 'No refresh token' || err.message === 'Token refresh failed') return;
     console.error('Poll error:', err);
   }
 }
