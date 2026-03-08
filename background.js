@@ -60,6 +60,7 @@ async function startAuthFlow() {
     state: state,
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
+    show_dialog: 'true', // 항상 권한 화면 표시 → 새 스코프 강제 승인
   });
 
   const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
