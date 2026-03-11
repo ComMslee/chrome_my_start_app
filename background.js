@@ -15,9 +15,19 @@ const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPOTIFY_API = 'https://api.spotify.com/v1';
 const POLL_INTERVAL_NAME = 'spotify-poll';
-const POLL_INTERVAL_MINUTES = 0.05; // ~3 seconds
+const POLL_INTERVAL_MINUTES = 0.25; // ~15 seconds
 
-// favoriteCheckDisabled은 chrome.storage.local에 영속 저장 (서비스 워커 재시작 대비)
+// 서비스 워커 재시작 시 storage에서 복원
+let lastCheckedTrackId = null;
+let lastFavoriteResult = false;
+
+(async () => {
+  const cached = await chrome.storage.local.get(['_favCache']);
+  if (cached._favCache) {
+    lastCheckedTrackId = cached._favCache.trackId;
+    lastFavoriteResult = cached._favCache.result;
+  }
+})();
 
 // ---- PKCE Helpers ----
 
@@ -85,7 +95,7 @@ async function startAuthFlow() {
 
           const tokens = await exchangeCodeForTokens(code, codeVerifier, redirectUrl);
           await saveTokens(tokens);
-          await chrome.storage.local.remove('favoriteDisabled');
+          lastCheckedTrackId = null; // 좋아요 캐시 리셋
           startPolling();
           resolve(tokens);
         } catch (err) {
@@ -167,7 +177,7 @@ async function saveTokens({ accessToken, refreshToken, expiresAt }) {
 
 async function logout() {
   await chrome.storage.local.remove([
-    'accessToken', 'refreshToken', 'expiresAt', 'playbackState', 'favoriteDisabled',
+    'accessToken', 'refreshToken', 'expiresAt', 'playbackState',
   ]);
   stopPolling();
   resetIcon();
@@ -190,10 +200,10 @@ function updateIcon(isFavorite) {
 function resetIcon() {
   chrome.action.setIcon({
     path: {
-      16: 'icons/icon16.png',
-      32: 'icons/icon32.png',
-      48: 'icons/icon48.png',
-      128: 'icons/icon128.png',
+      16: 'icons/icon_stop_16.png',
+      32: 'icons/icon_stop_32.png',
+      48: 'icons/icon_stop_48.png',
+      128: 'icons/icon_stop_128.png',
     },
   });
 }
@@ -231,21 +241,18 @@ async function getCurrentPlayback() {
 }
 
 async function checkIsFavorite(trackId) {
-  const { favoriteDisabled } = await chrome.storage.local.get('favoriteDisabled');
-  if (favoriteDisabled) return false;
-
   // 2026-02 Spotify API 변경: /me/tracks/contains → /me/library/contains (URI 사용)
   const uri = `spotify:track:${trackId}`;
   const response = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uri)}`);
   if (!response.ok) {
     if (response.status === 403) {
-      const body = await response.text().catch(() => '');
-      console.warn('[Spotify] checkIsFavorite 403 body:', body);
-      await chrome.storage.local.set({ favoriteDisabled: true });
+      console.warn('[Spotify] checkIsFavorite 403 — skipping this check');
+    } else if (response.status === 429) {
+      console.warn('[Spotify] checkIsFavorite rate limited (429)');
     } else {
       console.error('checkIsFavorite failed:', response.status, await response.text().catch(() => ''));
     }
-    return false;
+    return lastFavoriteResult; // 실패 시 마지막 알려진 상태 유지
   }
   const data = await response.json();
   return data[0] === true;
@@ -262,9 +269,6 @@ async function toggleFavorite(trackId, currentlyFavorite) {
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     console.warn(`[Spotify] toggleFavorite ${response.status} body:`, body);
-    if (response.status === 403) {
-      await chrome.storage.local.set({ favoriteDisabled: true });
-    }
   }
   return response.ok;
 }
@@ -315,7 +319,14 @@ async function pollPlaybackState() {
     }
 
     const trackId = playback.item.id;
-    const isFavorite = await checkIsFavorite(trackId);
+    // 곡 변경 시에만 좋아요 상태 API 호출
+    let isFavorite = lastFavoriteResult;
+    if (trackId !== lastCheckedTrackId) {
+      isFavorite = await checkIsFavorite(trackId);
+      lastCheckedTrackId = trackId;
+      lastFavoriteResult = isFavorite;
+      chrome.storage.local.set({ _favCache: { trackId, result: isFavorite } });
+    }
 
     const state = {
       trackId: trackId,
@@ -412,7 +423,11 @@ async function handleMessage(message) {
       const ok = await toggleFavorite(ps.trackId, ps.isFavorite);
       if (!ok) return { state: ps }; // 실패 시 상태 그대로 반환
       ps.isFavorite = !ps.isFavorite;
-      await chrome.storage.local.set({ playbackState: ps });
+      lastFavoriteResult = ps.isFavorite;
+      await chrome.storage.local.set({
+        playbackState: ps,
+        _favCache: { trackId: ps.trackId, result: ps.isFavorite },
+      });
       updateIcon(ps.isFavorite);
       return { state: ps };
     }
@@ -427,11 +442,10 @@ async function handleMessage(message) {
     }
 
     case 'debugInfo': {
-      const stored = await chrome.storage.local.get(['accessToken', 'expiresAt', 'favoriteDisabled']);
+      const stored = await chrome.storage.local.get(['accessToken', 'expiresAt']);
       const info = {
         hasToken: !!stored.accessToken,
         expiresAt: stored.expiresAt ? new Date(stored.expiresAt).toISOString() : null,
-        favoriteDisabled: !!stored.favoriteDisabled,
         spotifyUser: null,
         libraryTest: null,
       };
@@ -483,12 +497,6 @@ async function handleMessage(message) {
       } catch (e) {
         return { error: e.message };
       }
-    }
-
-    case 'resetFavoriteDisabled': {
-      await chrome.storage.local.remove('favoriteDisabled');
-      console.log('[Spotify] favoriteDisabled flag cleared');
-      return { success: true };
     }
 
     default:

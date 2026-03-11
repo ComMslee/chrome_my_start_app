@@ -14,9 +14,9 @@ const els = {
   prevBtn: $('prev-btn'),
   playPauseBtn: $('play-pause-btn'),
   nextBtn: $('next-btn'),
-  favoriteBtn: $('favorite-btn'),
   playIcon: $('play-icon'),
   pauseIcon: $('pause-icon'),
+  favoriteBtn: $('favorite-btn'),
   heartEmpty: $('heart-empty'),
   heartFilled: $('heart-filled'),
   currentTime: $('current-time'),
@@ -54,7 +54,6 @@ function updateUI(state) {
   showView('player');
   currentState = state;
 
-  // 텍스트 업데이트
   els.trackName.textContent = state.trackName;
   els.artistName.textContent = state.artistName;
 
@@ -156,8 +155,14 @@ els.nextBtn.addEventListener('click', () => withProcessing(async () => {
 }));
 
 els.favoriteBtn.addEventListener('click', () => withProcessing(async () => {
-  const response = await sendMessage({ type: 'toggleFavorite' });
-  updateUI(response.state);
+  console.log('[popup] toggleFavorite clicked, currentState:', currentState?.trackId, 'isFav:', currentState?.isFavorite);
+  try {
+    const response = await sendMessage({ type: 'toggleFavorite' });
+    console.log('[popup] toggleFavorite response:', JSON.stringify(response));
+    updateUI(response.state);
+  } catch (err) {
+    console.error('[popup] toggleFavorite error:', err.message);
+  }
 }));
 
 els.progressBar.addEventListener('click', async (e) => {
