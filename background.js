@@ -17,7 +17,7 @@ const SPOTIFY_API = 'https://api.spotify.com/v1';
 const POLL_INTERVAL_NAME = 'spotify-poll';
 const POLL_INTERVAL_MINUTES = 0.05; // ~3 seconds
 
-let favoriteCheckDisabled = false;
+// favoriteCheckDisabled은 chrome.storage.local에 영속 저장 (서비스 워커 재시작 대비)
 
 // ---- PKCE Helpers ----
 
@@ -60,6 +60,7 @@ async function startAuthFlow() {
     state: state,
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
+    show_dialog: 'true', // 항상 권한 화면 표시 → 새 스코프 강제 승인
   });
 
   const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
@@ -84,7 +85,7 @@ async function startAuthFlow() {
 
           const tokens = await exchangeCodeForTokens(code, codeVerifier, redirectUrl);
           await saveTokens(tokens);
-          favoriteCheckDisabled = false;
+          await chrome.storage.local.remove('favoriteDisabled');
           startPolling();
           resolve(tokens);
         } catch (err) {
@@ -166,7 +167,7 @@ async function saveTokens({ accessToken, refreshToken, expiresAt }) {
 
 async function logout() {
   await chrome.storage.local.remove([
-    'accessToken', 'refreshToken', 'expiresAt', 'playbackState',
+    'accessToken', 'refreshToken', 'expiresAt', 'playbackState', 'favoriteDisabled',
   ]);
   stopPolling();
   resetIcon();
@@ -230,12 +231,17 @@ async function getCurrentPlayback() {
 }
 
 async function checkIsFavorite(trackId) {
-  if (favoriteCheckDisabled) return false;
-  const response = await spotifyFetch(`/me/tracks/contains?ids=${trackId}`);
+  const { favoriteDisabled } = await chrome.storage.local.get('favoriteDisabled');
+  if (favoriteDisabled) return false;
+
+  // 2026-02 Spotify API 변경: /me/tracks/contains → /me/library/contains (URI 사용)
+  const uri = `spotify:track:${trackId}`;
+  const response = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uri)}`);
   if (!response.ok) {
     if (response.status === 403) {
-      favoriteCheckDisabled = true;
-      console.warn('checkIsFavorite: 403 Forbidden — user-library-read 스코프 누락. 재로그인 필요.');
+      const body = await response.text().catch(() => '');
+      console.warn('[Spotify] checkIsFavorite 403 body:', body);
+      await chrome.storage.local.set({ favoriteDisabled: true });
     } else {
       console.error('checkIsFavorite failed:', response.status, await response.text().catch(() => ''));
     }
@@ -247,10 +253,19 @@ async function checkIsFavorite(trackId) {
 
 async function toggleFavorite(trackId, currentlyFavorite) {
   const method = currentlyFavorite ? 'DELETE' : 'PUT';
-  const response = await spotifyFetch(`/me/tracks`, {
+  // 2026-02 Spotify API 변경: /me/tracks → /me/library (URI 사용)
+  const uri = `spotify:track:${trackId}`;
+  const response = await spotifyFetch(`/me/library`, {
     method,
-    body: JSON.stringify({ ids: [trackId] }),
+    body: JSON.stringify({ uris: [uri] }),
   });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    console.warn(`[Spotify] toggleFavorite ${response.status} body:`, body);
+    if (response.status === 403) {
+      await chrome.storage.local.set({ favoriteDisabled: true });
+    }
+  }
   return response.ok;
 }
 
@@ -320,6 +335,8 @@ async function pollPlaybackState() {
     // Update icon based on favorite status
     updateIcon(isFavorite);
   } catch (err) {
+    // 토큰 없음 / 갱신 실패는 정상적인 로그아웃 상태 — 조용히 종료
+    if (err.message === 'No refresh token' || err.message === 'Token refresh failed') return;
     console.error('Poll error:', err);
   }
 }
@@ -392,7 +409,8 @@ async function handleMessage(message) {
       const stateData = await chrome.storage.local.get(['playbackState']);
       const ps = stateData.playbackState;
       if (!ps) return { error: 'No track playing' };
-      await toggleFavorite(ps.trackId, ps.isFavorite);
+      const ok = await toggleFavorite(ps.trackId, ps.isFavorite);
+      if (!ok) return { state: ps }; // 실패 시 상태 그대로 반환
       ps.isFavorite = !ps.isFavorite;
       await chrome.storage.local.set({ playbackState: ps });
       updateIcon(ps.isFavorite);
@@ -406,6 +424,71 @@ async function handleMessage(message) {
     case 'isLoggedIn': {
       const stored = await chrome.storage.local.get(['accessToken']);
       return { loggedIn: !!stored.accessToken };
+    }
+
+    case 'debugInfo': {
+      const stored = await chrome.storage.local.get(['accessToken', 'expiresAt', 'favoriteDisabled']);
+      const info = {
+        hasToken: !!stored.accessToken,
+        expiresAt: stored.expiresAt ? new Date(stored.expiresAt).toISOString() : null,
+        favoriteDisabled: !!stored.favoriteDisabled,
+        spotifyUser: null,
+        libraryTest: null,
+      };
+      if (stored.accessToken) {
+        // 실제 로그인된 Spotify 계정 확인
+        try {
+          const meResp = await spotifyFetch('/me');
+          if (meResp.ok) {
+            const me = await meResp.json();
+            info.spotifyUser = { id: me.id, email: me.email, display_name: me.display_name, product: me.product };
+          } else {
+            info.spotifyUser = { error: `${meResp.status}` };
+          }
+        } catch (e) { info.spotifyUser = { error: e.message }; }
+
+        // library-read 스코프 직접 테스트
+        try {
+          const libResp = await spotifyFetch('/me/tracks?limit=1');
+          info.libraryTest = { status: libResp.status, ok: libResp.ok };
+          if (!libResp.ok) {
+            info.libraryTest.body = await libResp.text().catch(() => '');
+          }
+        } catch (e) { info.libraryTest = { error: e.message }; }
+      }
+      console.log('[Spotify] debugInfo:', JSON.stringify(info, null, 2));
+      return info;
+    }
+
+    case 'testContains': {
+      // /me/library/contains 직접 테스트 (favoriteDisabled 무시)
+      const ps2 = await chrome.storage.local.get(['playbackState']);
+      const trackId = ps2.playbackState?.trackId;
+      if (!trackId) return { error: 'No track playing' };
+      try {
+        const token = await getValidToken();
+        const uri = `spotify:track:${trackId}`;
+        const url = `${SPOTIFY_API}/me/library/contains?uris=${encodeURIComponent(uri)}`;
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await resp.text();
+        return {
+          trackId,
+          endpoint: `/me/library/contains?uris=${uri}`,
+          status: resp.status,
+          ok: resp.ok,
+          body,
+        };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+
+    case 'resetFavoriteDisabled': {
+      await chrome.storage.local.remove('favoriteDisabled');
+      console.log('[Spotify] favoriteDisabled flag cleared');
+      return { success: true };
     }
 
     default:
