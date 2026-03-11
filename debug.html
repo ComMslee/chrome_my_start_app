@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spotify Controller Debug</title>
+  <style>
+    body { font-family: monospace; background: #1a1a1a; color: #0f0; padding: 20px; }
+    button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+    pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .section { margin: 15px 0; }
+    h3 { color: #0ff; }
+  </style>
+</head>
+<body>
+  <h2>Spotify Controller - Debug Panel</h2>
+
+  <div class="section">
+    <h3>Actions</h3>
+    <button id="btn-debug">debugInfo</button>
+    <button id="btn-reset">resetFavoriteDisabled</button>
+    <button id="btn-state">getPlaybackState</button>
+    <button id="btn-toggle">toggleFavorite</button>
+    <button id="btn-logout">logout</button>
+    <button id="btn-login">login</button>
+    <button id="btn-test-contains" style="background:#ff0;color:#000;font-weight:bold">testContains (직접 API 테스트)</button>
+  </div>
+
+  <div class="section">
+    <h3>Result</h3>
+    <pre id="output">Click a button to test...</pre>
+  </div>
+
+  <script src="debug.js"></script>
+</body>
+</html>
