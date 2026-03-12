@@ -3,7 +3,7 @@
 // OAuth 2.0 PKCE + Spotify API + Status Polling
 // ============================================================
 
-const CLIENT_ID = 'de82896c777a4fa19f556b151120e44a';
+const CLIENT_ID = '475ce99ecd134997b1098c655b602964';
 const SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
@@ -74,6 +74,8 @@ async function startAuthFlow() {
   });
 
   const authUrl = `${SPOTIFY_AUTH_URL}?${params.toString()}`;
+  console.log('[Spotify] authUrl:', authUrl);
+  console.log('[Spotify] redirectUrl:', redirectUrl);
 
   return new Promise((resolve, reject) => {
     chrome.identity.launchWebAuthFlow(
@@ -186,7 +188,7 @@ async function logout() {
 // ---- Icon Management ----
 
 function updateIcon(isFavorite) {
-  const prefix = isFavorite ? 'heart_green' : 'heart_gray';
+  const prefix = isFavorite ? 'added_green' : 'add_gray';
   chrome.action.setIcon({
     path: {
       16: `icons/${prefix}_16.png`,

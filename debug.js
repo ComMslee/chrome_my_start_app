@@ -21,3 +21,4 @@ document.getElementById('btn-toggle').onclick = () => send({ type: 'toggleFavori
 document.getElementById('btn-logout').onclick = () => send({ type: 'logout' });
 document.getElementById('btn-login').onclick = () => send({ type: 'login' });
 document.getElementById('btn-test-contains').onclick = () => send({ type: 'testContains' });
+document.getElementById('btn-reset-rate').onclick = () => send({ type: 'resetRateLimit' });
