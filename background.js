@@ -266,15 +266,15 @@ async function toggleFavorite(trackId, currentlyFavorite) {
   const method = currentlyFavorite ? 'DELETE' : 'PUT';
   // 2026-02 Spotify API 변경: /me/tracks → /me/library (URI 사용)
   const uri = `spotify:track:${trackId}`;
-  const response = await spotifyFetch(`/me/library`, {
+  const response = await spotifyFetch(`/me/library?uris=${encodeURIComponent(uri)}`, {
     method,
-    body: JSON.stringify({ uris: [uri] }),
   });
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    console.warn(`[Spotify] toggleFavorite ${response.status} body:`, body);
+    console.error(`[Spotify] toggleFavorite FAILED: ${response.status} body:`, body);
+    return { ok: false, status: response.status, body };
   }
-  return response.ok;
+  return { ok: true };
 }
 
 async function controlPlayback(action) {
@@ -440,8 +440,8 @@ async function handleMessage(message) {
       const stateData = await chrome.storage.local.get(['playbackState']);
       const ps = stateData.playbackState;
       if (!ps) return { error: 'No track playing' };
-      const ok = await toggleFavorite(ps.trackId, ps.isFavorite);
-      if (!ok) return { state: ps }; // 실패 시 상태 그대로 반환
+      const result = await toggleFavorite(ps.trackId, ps.isFavorite);
+      if (!result.ok) return { error: `즐겨찾기 실패 (${result.status}): ${result.body}` };
       ps.isFavorite = !ps.isFavorite;
       lastFavoriteResult = ps.isFavorite;
       await chrome.storage.local.set({
