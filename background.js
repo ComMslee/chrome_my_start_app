@@ -15,11 +15,13 @@ const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const SPOTIFY_API = 'https://api.spotify.com/v1';
 const POLL_INTERVAL_NAME = 'spotify-poll';
-const POLL_INTERVAL_MINUTES = 0.25; // ~15 seconds
+const POLL_INTERVAL_MINUTES = 1/3; // ~20 seconds (재생 중)
+const POLL_SLOW_MINUTES = 1; // 1분 (재생 없음)
 
 // 서비스 워커 재시작 시 storage에서 복원
 let lastCheckedTrackId = null;
 let lastFavoriteResult = false;
+let isSlowPolling = false; // 현재 느린 폴링 상태
 
 (async () => {
   const cached = await chrome.storage.local.get(['_favCache']);
@@ -317,7 +319,23 @@ async function pollPlaybackState() {
     if (!playback || !playback.item) {
       await chrome.storage.local.set({ playbackState: null });
       resetIcon();
+
+      // 재생 없음 → 즉시 느린 폴링으로 전환
+      if (!isSlowPolling) {
+        isSlowPolling = true;
+        chrome.alarms.create(POLL_INTERVAL_NAME, {
+          periodInMinutes: POLL_SLOW_MINUTES,
+        });
+      }
       return;
+    }
+
+    // 재생 감지 → 느린 폴링이었으면 복귀
+    if (isSlowPolling) {
+      isSlowPolling = false;
+      chrome.alarms.create(POLL_INTERVAL_NAME, {
+        periodInMinutes: POLL_INTERVAL_MINUTES,
+      });
     }
 
     const trackId = playback.item.id;

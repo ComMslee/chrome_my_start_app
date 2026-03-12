@@ -26,15 +26,45 @@ const els = {
   progressHandle: $('progress-handle'),
   logoutBtn: $('logout-btn'),
   logoutBtnNop: $('logout-btn-nop'),
+  refreshBtn: $('refresh-btn'),
+  nextPollCountdown: $('next-poll-countdown'),
 };
 
 let currentState = null;
+let countdownTimer = null;
 let progressTimer = null;
 let isProcessing = false;
 
 function showView(name) {
   Object.values(views).forEach(v => v.classList.add('hidden'));
   views[name].classList.remove('hidden');
+  if (name === 'noPlayback') {
+    startCountdown();
+  } else {
+    stopCountdown();
+  }
+}
+
+function startCountdown() {
+  stopCountdown();
+  updateCountdown();
+  countdownTimer = setInterval(updateCountdown, 1000);
+}
+
+function stopCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  if (els.nextPollCountdown) els.nextPollCountdown.textContent = '';
+}
+
+function updateCountdown() {
+  chrome.alarms.get('spotify-poll', (alarm) => {
+    if (!alarm || !els.nextPollCountdown) return;
+    const remaining = Math.max(0, Math.ceil((alarm.scheduledTime - Date.now()) / 1000));
+    els.nextPollCountdown.textContent = `${remaining}s`;
+  });
 }
 
 function formatTime(ms) {
@@ -136,6 +166,17 @@ els.loginBtn.addEventListener('click', async () => {
 
 els.logoutBtn.addEventListener('click', doLogout);
 els.logoutBtnNop.addEventListener('click', doLogout);
+
+els.refreshBtn.addEventListener('click', async () => {
+  els.refreshBtn.classList.add('spinning');
+  els.refreshBtn.disabled = true;
+  try {
+    await loadPlaybackState();
+  } finally {
+    els.refreshBtn.classList.remove('spinning');
+    els.refreshBtn.disabled = false;
+  }
+});
 
 els.playPauseBtn.addEventListener('click', () => withProcessing(async () => {
   if (!currentState) return;
