@@ -368,6 +368,8 @@ async function pollPlaybackState() {
   } catch (err) {
     // 토큰 없음 / 갱신 실패는 정상적인 로그아웃 상태 — 조용히 종료
     if (err.message === 'No refresh token' || err.message === 'Token refresh failed') return;
+    // 네트워크 단절은 일시적 — 다음 폴링에서 재시도
+    if (err instanceof TypeError && err.message === 'Failed to fetch') return;
     console.error('Poll error:', err);
   }
 }
