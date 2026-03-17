@@ -274,8 +274,7 @@ function renderList(items, emptyText, type) {
       const div = document.createElement('div');
       div.className = 'list-item';
 
-      if (type === 'recent' && 'isFavorite' in item) {
-        // 상위 3개: 즐겨찾기 버튼 포함
+      if (type === 'recent' && item.trackId) {
         const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
         div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
       } else {

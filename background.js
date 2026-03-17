@@ -325,9 +325,8 @@ async function getRecentlyPlayed() {
     artist: i.track.artists.map(a => a.name).join(', '),
   }));
 
-  // 상위 3개만 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
-  const top3 = tracks.slice(0, 3);
-  const uncached = top3.filter(t => !(t.trackId in favCacheMap));
+  // 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
+  const uncached = tracks.filter(t => !(t.trackId in favCacheMap));
   if (uncached.length > 0) {
     const uris = uncached.map(t => `spotify:track:${t.trackId}`).join(',');
     const favResp = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uris)}`);
@@ -337,10 +336,9 @@ async function getRecentlyPlayed() {
     }
   }
 
-  // 결과: 상위 3개는 isFavorite 포함, 나머지는 없음
-  const items = tracks.map((t, i) => ({
+  const items = tracks.map(t => ({
     ...t,
-    ...(i < 3 ? { isFavorite: favCacheMap[t.trackId] ?? false } : {}),
+    isFavorite: favCacheMap[t.trackId] ?? false,
   }));
   return { items };
 }
