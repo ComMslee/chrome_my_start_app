@@ -10,6 +10,7 @@ const SCOPES = [
   'user-read-currently-playing',
   'user-library-read',
   'user-library-modify',
+  'user-read-recently-played',
 ].join(' ');
 const SPOTIFY_AUTH_URL = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
@@ -300,6 +301,30 @@ async function controlPlayback(action) {
   }
 }
 
+async function getQueue() {
+  const response = await spotifyFetch('/me/player/queue');
+  if (!response.ok) return { queue: [] };
+  const data = await response.json();
+  return {
+    queue: (data.queue || []).map(t => ({
+      name: t.name,
+      artist: t.artists.map(a => a.name).join(', '),
+    })),
+  };
+}
+
+async function getRecentlyPlayed() {
+  const response = await spotifyFetch('/me/player/recently-played?limit=20');
+  if (!response.ok) return { items: [] };
+  const data = await response.json();
+  return {
+    items: (data.items || []).map(i => ({
+      name: i.track.name,
+      artist: i.track.artists.map(a => a.name).join(', '),
+    })),
+  };
+}
+
 async function seekToPosition(positionMs) {
   const response = await spotifyFetch(
     `/me/player/seek?position_ms=${Math.round(positionMs)}`,
@@ -453,6 +478,12 @@ async function handleMessage(message) {
       updateIcon(ps.isFavorite);
       return { state: ps };
     }
+
+    case 'getQueue':
+      return await getQueue();
+
+    case 'getRecentlyPlayed':
+      return await getRecentlyPlayed();
 
     case 'seek':
       await seekToPosition(message.positionMs);

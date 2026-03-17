@@ -28,12 +28,16 @@ const els = {
   logoutBtnNop: $('logout-btn-nop'),
   refreshBtn: $('refresh-btn'),
   nextPollCountdown: $('next-poll-countdown'),
+  recentBtn: $('recent-btn'),
+  queueBtn: $('queue-btn'),
+  listContainer: $('list-container'),
 };
 
 let currentState = null;
 let countdownTimer = null;
 let progressTimer = null;
 let isProcessing = false;
+let activeList = null; // 'queue' | 'recent' | null
 
 function showView(name) {
   Object.values(views).forEach(v => v.classList.add('hidden'));
@@ -118,10 +122,15 @@ function startProgressTimer() {
     if (!currentState || !currentState.isPlaying) return;
     const elapsed = Date.now() - currentState.timestamp;
     const currentProgress = currentState.progressMs + elapsed;
-    updateProgress(
-      Math.min(currentProgress, currentState.durationMs),
-      currentState.durationMs
-    );
+
+    // 곡 끝 감지 → 즉시 새 상태 요청
+    if (currentProgress >= currentState.durationMs) {
+      stopProgressTimer();
+      loadPlaybackState();
+      return;
+    }
+
+    updateProgress(currentProgress, currentState.durationMs);
   }, 500);
 }
 
@@ -232,6 +241,63 @@ async function init() {
     else showView('login');
   } catch (err) { showView('login'); }
 }
+
+// ---- List (Queue / Recent) ----
+
+function closeList() {
+  activeList = null;
+  els.listContainer.classList.add('hidden');
+  els.listContainer.innerHTML = '';
+  els.recentBtn.classList.remove('active');
+  els.queueBtn.classList.remove('active');
+}
+
+function renderList(items, emptyText) {
+  els.listContainer.innerHTML = '';
+  if (!items || items.length === 0) {
+    els.listContainer.innerHTML = `<div class="list-empty">${emptyText}</div>`;
+  } else {
+    items.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+      els.listContainer.appendChild(div);
+    });
+  }
+  els.listContainer.classList.remove('hidden');
+}
+
+async function toggleList(type) {
+  if (activeList === type) {
+    closeList();
+    return;
+  }
+  activeList = type;
+  els.recentBtn.classList.toggle('active', type === 'recent');
+  els.queueBtn.classList.toggle('active', type === 'queue');
+  els.listContainer.innerHTML = '<div class="list-empty">...</div>';
+  els.listContainer.classList.remove('hidden');
+
+  try {
+    if (type === 'queue') {
+      const res = await sendMessage({ type: 'getQueue' });
+      console.log('[popup] getQueue response:', JSON.stringify(res));
+      if (activeList === 'queue') renderList(res.queue, '대기열이 비어있습니다');
+    } else {
+      const res = await sendMessage({ type: 'getRecentlyPlayed' });
+      console.log('[popup] getRecentlyPlayed response:', JSON.stringify(res));
+      if (activeList === 'recent') renderList(res.items, '최근 재생 기록이 없습니다');
+    }
+  } catch (err) {
+    console.error('[popup] toggleList error:', err);
+    if (activeList === type) {
+      els.listContainer.innerHTML = `<div class="list-empty">불러오기 실패</div>`;
+    }
+  }
+}
+
+els.queueBtn.addEventListener('click', () => toggleList('queue'));
+els.recentBtn.addEventListener('click', () => toggleList('recent'));
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);

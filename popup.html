@@ -15,7 +15,12 @@
 
   <div id="player-view" class="view hidden">
     <div class="player-grid">
-      <!-- 좌: 3줄 높이 로그아웃 -->
+      <!-- 맨 왼쪽: 최근재생 -->
+      <button id="recent-btn" class="btn-icon btn-list grid-recent" title="최근 재생">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+
+      <!-- 로그아웃 -->
       <button id="logout-btn" class="btn-icon btn-logout grid-logout" title="로그아웃">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -51,12 +56,20 @@
         </button>
       </div>
 
-      <!-- 우측 끝: 3줄 높이 좋아요 -->
+      <!-- 좋아요 -->
       <button id="favorite-btn" class="favorite-btn" title="좋아요">
         <svg id="heart-empty" viewBox="0 0 24 24" width="38" height="38"><circle cx="12" cy="12" r="10" fill="none" stroke="#b3b3b3" stroke-width="1.5"/><line x1="12" y1="7.5" x2="12" y2="16.5" stroke="#b3b3b3" stroke-width="1.5" stroke-linecap="round"/><line x1="7.5" y1="12" x2="16.5" y2="12" stroke="#b3b3b3" stroke-width="1.5" stroke-linecap="round"/></svg>
         <svg id="heart-filled" viewBox="0 0 24 24" width="38" height="38" class="hidden"><circle cx="12" cy="12" r="10" fill="#1DB954"/><path d="M8.5 12.5l2.5 2.5 5-5" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+
+      <!-- 맨 오른쪽: 대기열 -->
+      <button id="queue-btn" class="btn-icon btn-list grid-queue" title="대기열">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+      </button>
     </div>
+
+    <!-- 리스트 컨테이너 -->
+    <div id="list-container" class="list-container hidden"></div>
   </div>
 
   <div id="no-playback-view" class="view hidden">
