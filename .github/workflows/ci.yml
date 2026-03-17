@@ -17,12 +17,15 @@ jobs:
 
       - name: Check required files exist
         run: |
-          for f in background.js popup.js popup.html popup.css config.js spotify-auth.js spotify-api.js; do
+          for f in background.js popup.js popup.html popup.css config.js spotify-auth.js spotify-api.js utils.js; do
             [ -f "$f" ] && echo "$f OK" || (echo "$f MISSING" && exit 1)
           done
 
       - name: Check JS syntax
         run: |
-          for f in config.js spotify-auth.js spotify-api.js background.js popup.js; do
+          for f in config.js spotify-auth.js spotify-api.js background.js popup.js utils.js; do
             node --check "$f" && echo "$f syntax OK"
           done
+
+      - name: Run unit tests
+        run: node tests/test-utils.mjs

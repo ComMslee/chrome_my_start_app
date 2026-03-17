@@ -17,9 +17,12 @@ jobs:
 
       - name: Check JS syntax
         run: |
-          for f in config.js spotify-auth.js spotify-api.js background.js popup.js; do
+          for f in config.js spotify-auth.js spotify-api.js background.js popup.js utils.js; do
             node --check "$f" && echo "$f syntax OK"
           done
+
+      - name: Run unit tests
+        run: node tests/test-utils.mjs
 
       - name: Build zip
         run: |
@@ -27,7 +30,7 @@ jobs:
           ZIP_NAME="Spotify-Controller-v${VERSION}.zip"
           zip -r "$ZIP_NAME" \
             manifest.json \
-            background.js config.js spotify-auth.js spotify-api.js \
+            background.js config.js spotify-auth.js spotify-api.js utils.js \
             popup.html popup.js popup.css \
             debug.html debug.js \
             icons/

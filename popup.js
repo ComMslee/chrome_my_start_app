@@ -1,3 +1,5 @@
+import { formatTime } from './utils.js';
+
 const $ = (id) => document.getElementById(id);
 
 const views = {
@@ -70,13 +72,6 @@ function updateCountdown() {
     const remaining = Math.max(0, Math.ceil((alarm.scheduledTime - Date.now()) / 1000));
     els.nextPollCountdown.textContent = `${remaining}s`;
   });
-}
-
-function formatTime(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function updateUI(state) {

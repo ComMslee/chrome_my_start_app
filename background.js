@@ -26,25 +26,20 @@ let isSlowPolling = false;
 
 // ---- Icon Management ----
 
-function updateIcon(isFavorite) {
-  const prefix = isFavorite ? 'added_green' : 'add_gray';
+const ICON_PREFIX = {
+  favorite: 'added_green',
+  normal: 'add_gray',
+  stop: 'icon_stop',
+};
+
+function setIcon(type) {
+  const prefix = ICON_PREFIX[type] || ICON_PREFIX.stop;
   chrome.action.setIcon({
     path: {
       16: `icons/${prefix}_16.png`,
       32: `icons/${prefix}_32.png`,
       48: `icons/${prefix}_48.png`,
       128: `icons/${prefix}_128.png`,
-    },
-  });
-}
-
-function resetIcon() {
-  chrome.action.setIcon({
-    path: {
-      16: 'icons/icon_stop_16.png',
-      32: 'icons/icon_stop_32.png',
-      48: 'icons/icon_stop_48.png',
-      128: 'icons/icon_stop_128.png',
     },
   });
 }
@@ -59,7 +54,7 @@ async function pollPlaybackState() {
     const playback = await getCurrentPlayback();
     if (!playback || !playback.item) {
       await chrome.storage.local.set({ playbackState: null });
-      resetIcon();
+      setIcon('stop');
 
       if (!isSlowPolling) {
         isSlowPolling = true;
@@ -97,7 +92,7 @@ async function pollPlaybackState() {
     };
 
     await chrome.storage.local.set({ playbackState: state });
-    updateIcon(isFavorite);
+    setIcon(isFavorite ? 'favorite' : 'normal');
   } catch (err) {
     if (err.message === 'No refresh token' || err.message === 'Token refresh failed') return;
     if (err instanceof TypeError && err.message === 'Failed to fetch') return;
@@ -146,7 +141,7 @@ async function handleMessage(message) {
       return { success: true };
 
     case 'logout':
-      await logout(() => { stopPolling(); resetIcon(); });
+      await logout(() => { stopPolling(); setIcon('stop'); });
       return { success: true };
 
     case 'getPlaybackState': {
@@ -175,7 +170,7 @@ async function handleMessage(message) {
         playbackState: ps,
         _favCache: { trackId: ps.trackId, result: ps.isFavorite },
       });
-      updateIcon(ps.isFavorite);
+      setIcon(ps.isFavorite ? 'favorite' : 'normal');
       return { state: ps };
     }
 
@@ -200,7 +195,7 @@ async function handleMessage(message) {
           playbackState: cur.playbackState,
           _favCache: { trackId: tId, result: newFav },
         });
-        updateIcon(newFav);
+        setIcon(newFav ? 'favorite' : 'normal');
       }
       return { success: true, newState: newFav };
     }
