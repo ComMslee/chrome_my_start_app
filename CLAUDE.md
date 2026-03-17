@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Spotify Controller — a Chrome Extension (Manifest V3) for controlling Spotify playback and managing favorites from the browser toolbar. Pure vanilla JavaScript, no build step, no npm dependencies.
+Spotify Controller — a Chrome Extension (Manifest V3) for controlling Spotify playback and managing favorites from the browser toolbar. Pure vanilla JavaScript, no build step, no npm dependencies. Uses ES Modules for service worker.
 
 ## Development
 
@@ -22,9 +22,12 @@ Debug panel available at `debug.html` for testing OAuth tokens and API endpoints
 
 ### Core Files
 
-- **background.js** — Service worker: OAuth 2.0 PKCE auth, Spotify API calls, polling via `chrome.alarms` (~15s interval), toolbar icon management, favorite state caching
-- **popup.js** — Popup UI logic: view switching (loading/login/player/no-playback), playback controls, progress bar with client-side timer updates (500ms), state sync via `chrome.storage.onChanged`
-- **popup.html/css** — Dark-themed UI with 4-column CSS Grid layout (logout | track info | controls | favorite)
+- **config.js** — Shared constants (Client ID, API URLs, polling intervals)
+- **spotify-auth.js** — OAuth 2.0 PKCE auth, token exchange/refresh/validation
+- **spotify-api.js** — `spotifyFetch()` wrapper, all Spotify API calls, `favCacheMap` (per-track favorite cache)
+- **background.js** — Main service worker: polling via `chrome.alarms` (~20s), toolbar icon management, message handler for popup communication
+- **popup.js** — Popup UI logic: view switching, playback controls, progress bar (500ms timer), list rendering, state sync via `chrome.storage.onChanged`
+- **popup.html/css** — Dark-themed UI with 5-column CSS Grid layout (logout | track info | controls | favorite | list buttons)
 
 ### State Management
 
@@ -32,6 +35,9 @@ All state lives in `chrome.storage.local`:
 - `accessToken`, `refreshToken`, `expiresAt` — OAuth tokens (auto-refresh 60s before expiry)
 - `playbackState` — Current track info and playback status
 - `_favCache` — Favorite status cache with trackId (persists across service worker restarts)
+
+In-memory (service worker lifetime):
+- `favCacheMap` — Per-track favorite status, accumulates across track changes. Cache hit avoids API call.
 
 ### Spotify API Notes (2026-02 changes)
 
