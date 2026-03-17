@@ -189,8 +189,20 @@ async function handleMessage(message) {
       const { trackId: tId, isFavorite: isFav } = message;
       const result = await toggleFavorite(tId, isFav);
       if (!result.ok) return { error: `즐겨찾기 실패 (${result.status})` };
-      favCacheMap[tId] = !isFav;
-      return { success: true, newState: !isFav };
+      const newFav = !isFav;
+      favCacheMap[tId] = newFav;
+      // 현재 재생 곡이면 메인 UI + 트레이 아이콘도 동기화
+      const cur = await chrome.storage.local.get(['playbackState']);
+      if (cur.playbackState?.trackId === tId) {
+        cur.playbackState.isFavorite = newFav;
+        lastFavoriteResult = newFav;
+        await chrome.storage.local.set({
+          playbackState: cur.playbackState,
+          _favCache: { trackId: tId, result: newFav },
+        });
+        updateIcon(newFav);
+      }
+      return { success: true, newState: newFav };
     }
 
     case 'seek':
