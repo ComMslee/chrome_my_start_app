@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifest.json
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json OK')"
+
+      - name: Check JS syntax
+        run: |
+          for f in config.js spotify-auth.js spotify-api.js background.js popup.js; do
+            node --check "$f" && echo "$f syntax OK"
+          done
+
+      - name: Build zip
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          ZIP_NAME="Spotify-Controller-v${VERSION}.zip"
+          zip -r "$ZIP_NAME" \
+            manifest.json \
+            background.js config.js spotify-auth.js spotify-api.js \
+            popup.html popup.js popup.css \
+            debug.html debug.js \
+            icons/
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "SHA256=$(sha256sum "$ZIP_NAME" | cut -d' ' -f1)" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          body: |
+            sha256:${{ env.SHA256 }}
