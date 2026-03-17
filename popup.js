@@ -103,8 +103,8 @@ function updateUI(state) {
   els.totalTime.textContent = formatTime(state.durationMs);
 
   // 곡이 바뀌면 열려있는 리스트 갱신
-  if (activeList && state.trackId !== prevTrackId) {
-    fetchList(activeList);
+  if (prevTrackId && state.trackId !== prevTrackId) {
+    if (activeList) fetchList(activeList);
   }
   prevTrackId = state.trackId;
 
@@ -212,11 +212,17 @@ els.nextBtn.addEventListener('click', () => withProcessing(async () => {
 }));
 
 els.favoriteBtn.addEventListener('click', () => withProcessing(async () => {
-  console.log('[popup] toggleFavorite clicked, currentState:', currentState?.trackId, 'isFav:', currentState?.isFavorite);
   try {
     const response = await sendMessage({ type: 'toggleFavorite' });
-    console.log('[popup] toggleFavorite response:', JSON.stringify(response));
     updateUI(response.state);
+    // 열려있는 이전 리스트에서 같은 트랙의 ♥ DOM 직접 갱신
+    if (activeList === 'recent') {
+      const btn = els.listContainer.querySelector(`.list-fav[data-track-id="${response.state.trackId}"]`);
+      if (btn) {
+        btn.dataset.fav = String(response.state.isFavorite);
+        btn.classList.toggle('active', response.state.isFavorite);
+      }
+    }
   } catch (err) {
     console.error('[popup] toggleFavorite error:', err.message);
   }
@@ -259,17 +265,48 @@ function closeList() {
   els.queueBtn.classList.remove('active');
 }
 
-function renderList(items, emptyText) {
+function renderList(items, emptyText, type) {
   els.listContainer.innerHTML = '';
   if (!items || items.length === 0) {
     els.listContainer.innerHTML = `<div class="list-empty">${emptyText}</div>`;
   } else {
-    items.forEach((item, i) => {
+    items.forEach(item => {
       const div = document.createElement('div');
       div.className = 'list-item';
-      div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+
+      if (type === 'recent' && 'isFavorite' in item) {
+        // 상위 3개: 즐겨찾기 버튼 포함
+        const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
+        div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+      } else {
+        div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+      }
+
       els.listContainer.appendChild(div);
     });
+
+    // 즐겨찾기 토글 이벤트
+    if (type === 'recent') {
+      els.listContainer.querySelectorAll('.list-fav').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const trackId = btn.dataset.trackId;
+          const isFav = btn.dataset.fav === 'true';
+          btn.disabled = true;
+          try {
+            const res = await sendMessage({ type: 'toggleRecentFavorite', trackId, isFavorite: isFav });
+            if (res.success) {
+              btn.dataset.fav = String(res.newState);
+              btn.classList.toggle('active', res.newState);
+            }
+          } catch (err) {
+            console.error('[popup] toggleRecentFavorite error:', err);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+    }
   }
   els.listContainer.classList.remove('hidden');
 }
@@ -278,10 +315,10 @@ async function fetchList(type) {
   try {
     if (type === 'queue') {
       const res = await sendMessage({ type: 'getQueue' });
-      if (activeList === 'queue') renderList(res.queue, '대기열이 비어있습니다');
+      if (activeList === 'queue') renderList(res.queue, '다음 리스트가 비어있습니다', 'queue');
     } else {
       const res = await sendMessage({ type: 'getRecentlyPlayed' });
-      if (activeList === 'recent') renderList(res.items, '최근 재생 기록이 없습니다');
+      if (activeList === 'recent') renderList(res.items, '이전 리스트가 없습니다', 'recent');
     }
   } catch (err) {
     console.error('[popup] fetchList error:', err);

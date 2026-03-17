@@ -313,16 +313,36 @@ async function getQueue() {
   };
 }
 
+const favCacheMap = {};  // { [trackId]: boolean } — 트랙별 즐겨찾기 누적 캐시
+
 async function getRecentlyPlayed() {
-  const response = await spotifyFetch('/me/player/recently-played?limit=20');
+  const response = await spotifyFetch('/me/player/recently-played?limit=5');
   if (!response.ok) return { items: [] };
   const data = await response.json();
-  return {
-    items: (data.items || []).map(i => ({
-      name: i.track.name,
-      artist: i.track.artists.map(a => a.name).join(', '),
-    })),
-  };
+  const tracks = (data.items || []).map(i => ({
+    trackId: i.track.id,
+    name: i.track.name,
+    artist: i.track.artists.map(a => a.name).join(', '),
+  }));
+
+  // 상위 3개만 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
+  const top3 = tracks.slice(0, 3);
+  const uncached = top3.filter(t => !(t.trackId in favCacheMap));
+  if (uncached.length > 0) {
+    const uris = uncached.map(t => `spotify:track:${t.trackId}`).join(',');
+    const favResp = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uris)}`);
+    if (favResp.ok) {
+      const favData = await favResp.json();
+      uncached.forEach((t, i) => { favCacheMap[t.trackId] = favData[i] === true; });
+    }
+  }
+
+  // 결과: 상위 3개는 isFavorite 포함, 나머지는 없음
+  const items = tracks.map((t, i) => ({
+    ...t,
+    ...(i < 3 ? { isFavorite: favCacheMap[t.trackId] ?? false } : {}),
+  }));
+  return { items };
 }
 
 async function seekToPosition(positionMs) {
@@ -370,6 +390,7 @@ async function pollPlaybackState() {
       isFavorite = await checkIsFavorite(trackId);
       lastCheckedTrackId = trackId;
       lastFavoriteResult = isFavorite;
+      favCacheMap[trackId] = isFavorite; // 트랙별 즐겨찾기 캐시 누적
       chrome.storage.local.set({ _favCache: { trackId, result: isFavorite } });
     }
 
@@ -471,6 +492,7 @@ async function handleMessage(message) {
       if (!result.ok) return { error: `즐겨찾기 실패 (${result.status}): ${result.body}` };
       ps.isFavorite = !ps.isFavorite;
       lastFavoriteResult = ps.isFavorite;
+      favCacheMap[ps.trackId] = ps.isFavorite; // 트랙별 캐시 갱신
       await chrome.storage.local.set({
         playbackState: ps,
         _favCache: { trackId: ps.trackId, result: ps.isFavorite },
@@ -484,6 +506,14 @@ async function handleMessage(message) {
 
     case 'getRecentlyPlayed':
       return await getRecentlyPlayed();
+
+    case 'toggleRecentFavorite': {
+      const { trackId: tId, isFavorite: isFav } = message;
+      const result = await toggleFavorite(tId, isFav);
+      if (!result.ok) return { error: `즐겨찾기 실패 (${result.status})` };
+      favCacheMap[tId] = !isFav; // 트랙별 캐시 갱신
+      return { success: true, newState: !isFav };
+    }
 
     case 'seek':
       await seekToPosition(message.positionMs);
