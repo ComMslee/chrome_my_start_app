@@ -38,6 +38,7 @@ let countdownTimer = null;
 let progressTimer = null;
 let isProcessing = false;
 let activeList = null; // 'queue' | 'recent' | null
+let prevTrackId = null;
 
 function showView(name) {
   Object.values(views).forEach(v => v.classList.add('hidden'));
@@ -100,6 +101,12 @@ function updateUI(state) {
 
   updateProgress(state.progressMs, state.durationMs);
   els.totalTime.textContent = formatTime(state.durationMs);
+
+  // 곡이 바뀌면 열려있는 리스트 갱신
+  if (activeList && state.trackId !== prevTrackId) {
+    fetchList(activeList);
+  }
+  prevTrackId = state.trackId;
 
   if (state.isPlaying) {
     startProgressTimer();
@@ -267,6 +274,23 @@ function renderList(items, emptyText) {
   els.listContainer.classList.remove('hidden');
 }
 
+async function fetchList(type) {
+  try {
+    if (type === 'queue') {
+      const res = await sendMessage({ type: 'getQueue' });
+      if (activeList === 'queue') renderList(res.queue, '대기열이 비어있습니다');
+    } else {
+      const res = await sendMessage({ type: 'getRecentlyPlayed' });
+      if (activeList === 'recent') renderList(res.items, '최근 재생 기록이 없습니다');
+    }
+  } catch (err) {
+    console.error('[popup] fetchList error:', err);
+    if (activeList === type) {
+      els.listContainer.innerHTML = `<div class="list-empty">불러오기 실패</div>`;
+    }
+  }
+}
+
 async function toggleList(type) {
   if (activeList === type) {
     closeList();
@@ -277,23 +301,7 @@ async function toggleList(type) {
   els.queueBtn.classList.toggle('active', type === 'queue');
   els.listContainer.innerHTML = '<div class="list-empty">...</div>';
   els.listContainer.classList.remove('hidden');
-
-  try {
-    if (type === 'queue') {
-      const res = await sendMessage({ type: 'getQueue' });
-      console.log('[popup] getQueue response:', JSON.stringify(res));
-      if (activeList === 'queue') renderList(res.queue, '대기열이 비어있습니다');
-    } else {
-      const res = await sendMessage({ type: 'getRecentlyPlayed' });
-      console.log('[popup] getRecentlyPlayed response:', JSON.stringify(res));
-      if (activeList === 'recent') renderList(res.items, '최근 재생 기록이 없습니다');
-    }
-  } catch (err) {
-    console.error('[popup] toggleList error:', err);
-    if (activeList === type) {
-      els.listContainer.innerHTML = `<div class="list-empty">불러오기 실패</div>`;
-    }
-  }
+  await fetchList(type);
 }
 
 els.queueBtn.addEventListener('click', () => toggleList('queue'));
