@@ -276,6 +276,24 @@ function renderList(items, emptyText, type) {
         div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
       }
 
+      // 대기열 곡 클릭 → 바로 재생
+      if (type === 'queue' && item.uri) {
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', async () => {
+          div.style.opacity = '0.5';
+          div.style.pointerEvents = 'none';
+          try {
+            const res = await sendMessage({ type: 'playTrack', uri: item.uri });
+            if (res.state) updateUI(res.state);
+            closeList();
+          } catch (err) {
+            console.error('[popup] playTrack error:', err);
+            div.style.opacity = '1';
+            div.style.pointerEvents = '';
+          }
+        });
+      }
+
       els.listContainer.appendChild(div);
     });
 
@@ -337,7 +355,6 @@ async function toggleList(type) {
 
 els.queueBtn.addEventListener('click', () => toggleList('queue'));
 els.recentBtn.addEventListener('click', () => toggleList('recent'));
-
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);
 });

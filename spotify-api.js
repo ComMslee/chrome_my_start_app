@@ -98,10 +98,19 @@ export async function getQueue() {
   const data = await response.json();
   return {
     queue: (data.queue || []).map(t => ({
+      uri: t.uri,
       name: t.name,
       artist: t.artists.map(a => a.name).join(', '),
     })),
   };
+}
+
+export async function playTrack(uri) {
+  const response = await spotifyFetch('/me/player/play', {
+    method: 'PUT',
+    body: JSON.stringify({ uris: [uri] }),
+  });
+  return response.ok || response.status === 204;
 }
 
 export async function getRecentlyPlayed() {

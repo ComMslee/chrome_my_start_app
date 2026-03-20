@@ -8,7 +8,7 @@ import { startAuthFlow, logout, getValidToken } from './spotify-auth.js';
 import {
   spotifyFetch, getCurrentPlayback, controlPlayback, seekToPosition,
   checkIsFavorite, toggleFavorite, favCacheMap,
-  getQueue, getRecentlyPlayed,
+  getQueue, getRecentlyPlayed, playTrack,
 } from './spotify-api.js';
 
 // 서비스 워커 재시작 시 storage에서 복원
@@ -198,6 +198,15 @@ async function handleMessage(message) {
         setIcon(newFav ? 'favorite' : 'normal');
       }
       return { success: true, newState: newFav };
+    }
+
+    case 'playTrack': {
+      const ok = await playTrack(message.uri);
+      if (!ok) return { error: '곡 재생 실패' };
+      await new Promise(r => setTimeout(r, 300));
+      await pollPlaybackState();
+      const afterTrack = await chrome.storage.local.get(['playbackState']);
+      return { state: afterTrack.playbackState };
     }
 
     case 'seek':
