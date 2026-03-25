@@ -74,6 +74,13 @@ body {
   transform: scale(1.02);
 }
 
+.login-guide {
+  color: #535353;
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ---- Player ---- */
 
 .player-grid {
@@ -285,6 +292,14 @@ body {
   font-size: 10px;
   color: #535353;
   font-variant-numeric: tabular-nums;
+}
+
+.nop-guide {
+  color: #535353;
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.5;
+  padding: 6px 16px 0;
 }
 
 /* ---- List Buttons ---- */

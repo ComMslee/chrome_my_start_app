@@ -81,9 +81,9 @@ async function pollPlaybackState() {
     const state = {
       trackId,
       trackName: playback.item.name,
-      artistName: playback.item.artists.map(a => a.name).join(', '),
-      albumArt: playback.item.album.images[0]?.url || '',
-      albumArtSmall: playback.item.album.images[playback.item.album.images.length - 1]?.url || '',
+      artistName: (playback.item.artists || []).map(a => a.name).join(', '),
+      albumArt: playback.item.album?.images?.[0]?.url || '',
+      albumArtSmall: playback.item.album?.images?.at(-1)?.url || '',
       isPlaying: playback.is_playing,
       isFavorite,
       progressMs: playback.progress_ms,

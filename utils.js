@@ -6,6 +6,7 @@
  * ms → "m:ss" 형식 변환
  */
 export function formatTime(ms) {
+  if (ms == null || isNaN(ms)) return '0:00';
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;

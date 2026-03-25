@@ -18,13 +18,18 @@ export async function spotifyFetch(endpoint, options = {}) {
   });
 
   if (response.status === 401) {
-    const newToken = (await refreshAccessToken()).accessToken;
-    const retryHeaders = { Authorization: `Bearer ${newToken}` };
-    if (options.body) retryHeaders['Content-Type'] = 'application/json';
-    return fetch(`${SPOTIFY_API}${endpoint}`, {
-      ...options,
-      headers: { ...retryHeaders, ...options.headers },
-    });
+    try {
+      const newToken = (await refreshAccessToken()).accessToken;
+      const retryHeaders = { Authorization: `Bearer ${newToken}` };
+      if (options.body) retryHeaders['Content-Type'] = 'application/json';
+      return fetch(`${SPOTIFY_API}${endpoint}`, {
+        ...options,
+        headers: { ...retryHeaders, ...options.headers },
+      });
+    } catch (err) {
+      console.error('[spotifyFetch] Token refresh failed:', err.message);
+      return response;
+    }
   }
 
   return response;
@@ -97,10 +102,10 @@ export async function getQueue() {
   if (!response.ok) return { queue: [] };
   const data = await response.json();
   return {
-    queue: (data.queue || []).map(t => ({
+    queue: (data.queue || []).filter(t => t.type === 'track').map(t => ({
       uri: t.uri,
       name: t.name,
-      artist: t.artists.map(a => a.name).join(', '),
+      artist: (t.artists || []).map(a => a.name).join(', '),
     })),
   };
 }
@@ -117,10 +122,10 @@ export async function getRecentlyPlayed() {
   const response = await spotifyFetch('/me/player/recently-played?limit=5');
   if (!response.ok) return { items: [] };
   const data = await response.json();
-  const tracks = (data.items || []).map(i => ({
+  const tracks = (data.items || []).filter(i => i.track?.type === 'track').map(i => ({
     trackId: i.track.id,
     name: i.track.name,
-    artist: i.track.artists.map(a => a.name).join(', '),
+    artist: (i.track.artists || []).map(a => a.name).join(', '),
   }));
 
   // 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
