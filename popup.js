@@ -33,8 +33,6 @@ const els = {
   recentBtn: $('recent-btn'),
   queueBtn: $('queue-btn'),
   listContainer: $('list-container'),
-  recentBtnNop: $('recent-btn-nop'),
-  listContainerNop: $('list-container-nop'),
 };
 
 let currentState = null;
@@ -86,8 +84,20 @@ function updateUI(state) {
   showView('player');
   currentState = state;
 
-  els.trackName.textContent = state.trackName;
+  els.trackName.innerHTML = `<span class="track-name-inner">${state.trackName}</span>`;
   els.artistName.textContent = state.artistName;
+
+  // 트랙명이 넘치면 마퀴 애니메이션
+  els.trackName.classList.remove('marquee');
+  setTimeout(() => {
+    const inner = els.trackName.querySelector('.track-name-inner');
+    if (!inner) return;
+    const overflow = inner.scrollWidth - els.trackName.clientWidth;
+    if (overflow > 0) {
+      els.trackName.style.setProperty('--marquee-offset', `-${overflow}px`);
+      els.trackName.classList.add('marquee');
+    }
+  }, 100);
 
   els.playIcon.classList.toggle('hidden', state.isPlaying);
   els.pauseIcon.classList.toggle('hidden', !state.isPlaying);
@@ -357,67 +367,6 @@ async function toggleList(type) {
 
 els.queueBtn.addEventListener('click', () => toggleList('queue'));
 els.recentBtn.addEventListener('click', () => toggleList('recent'));
-
-// No-playback view: recent list toggle
-els.recentBtnNop.addEventListener('click', async () => {
-  const container = els.listContainerNop;
-  if (!container.classList.contains('hidden')) {
-    container.classList.add('hidden');
-    container.innerHTML = '';
-    els.recentBtnNop.classList.remove('active');
-    return;
-  }
-  els.recentBtnNop.classList.add('active');
-  container.innerHTML = '<div class="list-empty">...</div>';
-  container.classList.remove('hidden');
-  try {
-    const res = await sendMessage({ type: 'getRecentlyPlayed' });
-    renderListInto(container, res.items, 'No recently played tracks', 'recent');
-  } catch (err) {
-    container.innerHTML = '<div class="list-empty">Failed to load</div>';
-  }
-});
-
-function renderListInto(container, items, emptyText, type) {
-  container.innerHTML = '';
-  if (!items || items.length === 0) {
-    container.innerHTML = `<div class="list-empty">${emptyText}</div>`;
-    return;
-  }
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'list-item';
-    if (type === 'recent' && item.trackId) {
-      const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
-      div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
-    } else {
-      div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
-    }
-    container.appendChild(div);
-  });
-  if (type === 'recent') {
-    container.querySelectorAll('.list-fav').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const trackId = btn.dataset.trackId;
-        const isFav = btn.dataset.fav === 'true';
-        btn.disabled = true;
-        try {
-          const res = await sendMessage({ type: 'toggleRecentFavorite', trackId, isFavorite: isFav });
-          if (res.success) {
-            btn.dataset.fav = String(res.newState);
-            btn.classList.toggle('active', res.newState);
-          }
-        } catch (err) {
-          console.error('[popup] toggleRecentFavorite error:', err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-  }
-}
-
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);
 });
