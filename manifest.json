@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Spotify Controller",
   "version": "1.2.3",
-  "description": "Control Spotify playback and manage favorites from your browser toolbar. Requires an active Spotify Premium account with playback on a device.",
+  "description": "Control Spotify playback and manage favorites from your browser toolbar. Requires Spotify Premium with active playback.",
   "permissions": ["identity", "storage", "alarms"],
   "host_permissions": [
     "https://api.spotify.com/*",
