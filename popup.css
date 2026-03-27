@@ -85,52 +85,63 @@ body {
 
 .player-grid {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
-  grid-template-rows: 22px 20px 24px;
+  grid-template-columns: auto 1fr auto 8px auto 8px auto;
+  grid-template-rows: 22px 24px;
   gap: 2px 0;
   align-items: center;
 }
 
 .grid-logout {
   grid-column: 1;
-  grid-row: 1 / 4;
+  grid-row: 1 / 3;
   padding-right: 14px;
   border-right: 1px solid #282828;
   margin-right: 10px;
 }
 
-.player-grid > .player-row:nth-child(2) {
+.grid-info {
   grid-column: 2 / 4;
   grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.player-grid > .player-row:nth-child(3) {
+.grid-sub {
   grid-column: 2;
   grid-row: 2;
-}
-
-.player-grid > .player-row:nth-child(4) {
-  grid-column: 2;
-  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .grid-controls {
   grid-column: 3;
-  grid-row: 2 / 4;
+  grid-row: 2;
   display: flex;
   align-items: center;
   gap: 4px;
   padding-left: 8px;
 }
 
+.grid-recent {
+  grid-column: 5;
+  grid-row: 1;
+}
+
+.grid-queue {
+  grid-column: 5;
+  grid-row: 2;
+}
+
 .favorite-btn {
-  grid-column: 4;
-  grid-row: 1 / 4;
+  grid-column: 7;
+  grid-row: 1 / 3;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  padding-left: 14px;
+  padding: 4px 4px 4px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,18 +215,6 @@ body {
   transform: scale(1.1);
 }
 
-.btn-play {
-  background: #fff;
-  color: #000;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-}
-
-.btn-play:hover {
-  color: #000;
-  transform: scale(1.08);
-}
 
 .favorite-btn.active {
   color: #1DB954;
@@ -238,19 +237,19 @@ body {
 .nop-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: 22px 20px 24px;
+  grid-template-rows: 22px 24px;
   gap: 2px 0;
   align-items: center;
 }
 
 .nop-grid .grid-logout {
   grid-column: 1;
-  grid-row: 1 / 4;
+  grid-row: 1 / 3;
 }
 
 .nop-content {
   grid-column: 2;
-  grid-row: 1 / 4;
+  grid-row: 1 / 3;
   display: flex;
   align-items: center;
   position: relative;
@@ -304,18 +303,7 @@ body {
 
 /* ---- List Buttons ---- */
 
-.grid-list-btns {
-  grid-column: 5;
-  grid-row: 1 / 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding-left: 14px;
-  border-left: 1px solid #282828;
-  margin-left: 4px;
-}
+/* grid-list-btns removed — recent/queue are now individual grid items */
 
 .btn-list {
   color: #535353;
