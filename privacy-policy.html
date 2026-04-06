@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인정보처리방침 — Spotify Controller</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.7; color: #222; }
+    h1 { font-size: 1.6em; border-bottom: 2px solid #1DB954; padding-bottom: 8px; }
+    h2 { font-size: 1.2em; margin-top: 2em; color: #333; }
+    ul { padding-left: 1.5em; }
+    li { margin-bottom: 0.4em; }
+    .updated { color: #666; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>개인정보처리방침</h1>
+  <p class="updated">최종 수정일: 2026년 4월 7일</p>
+
+  <p><strong>Spotify Controller</strong>(이하 "본 확장 프로그램")는 사용자의 개인정보를 중요하게 생각합니다. 본 방침은 확장 프로그램이 어떤 데이터를 처리하며, 이를 어떻게 보호하는지 설명합니다.</p>
+
+  <h2>1. 수집하는 데이터</h2>
+  <p>본 확장 프로그램은 다음 데이터를 처리합니다:</p>
+  <ul>
+    <li><strong>Spotify OAuth 토큰</strong> — Spotify 계정 인증을 위해 발급받는 액세스 토큰과 리프레시 토큰</li>
+    <li><strong>재생 상태 정보</strong> — 현재 재생 중인 트랙, 아티스트, 앨범 정보</li>
+    <li><strong>즐겨찾기 상태</strong> — 트랙의 라이브러리 저장 여부</li>
+  </ul>
+
+  <h2>2. 데이터 저장 방식</h2>
+  <ul>
+    <li>모든 데이터는 <strong>사용자의 브라우저 내(chrome.storage.local)</strong>에만 저장됩니다.</li>
+    <li>외부 서버로 데이터를 전송하거나 수집하지 않습니다.</li>
+    <li>Spotify API와의 통신은 Spotify 공식 API 엔드포인트를 통해서만 이루어집니다.</li>
+  </ul>
+
+  <h2>3. 데이터 공유</h2>
+  <p>본 확장 프로그램은 사용자의 데이터를 제3자와 공유하지 않습니다. 수집된 데이터는 확장 프로그램의 기능 제공 목적으로만 사용됩니다.</p>
+
+  <h2>4. 데이터 삭제</h2>
+  <p>확장 프로그램을 제거하면 브라우저에 저장된 모든 데이터가 자동으로 삭제됩니다. 로그아웃 시 OAuth 토큰이 즉시 삭제됩니다.</p>
+
+  <h2>5. 필요한 권한</h2>
+  <ul>
+    <li><strong>identity</strong> — Spotify OAuth 인증</li>
+    <li><strong>storage</strong> — 토큰 및 재생 상태 로컬 저장</li>
+    <li><strong>alarms</strong> — 재생 상태 주기적 폴링</li>
+    <li><strong>host_permissions (api.spotify.com, accounts.spotify.com)</strong> — Spotify API 호출</li>
+  </ul>
+
+  <h2>6. 문의</h2>
+  <p>개인정보 처리에 관한 문의사항은 <a href="https://github.com/ComMslee/chrome_my_start_app/issues">GitHub Issues</a>를 통해 연락해 주시기 바랍니다.</p>
+</body>
+</html>
