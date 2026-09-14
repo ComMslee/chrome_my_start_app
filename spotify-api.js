@@ -70,14 +70,14 @@ export async function seekToPosition(positionMs) {
 // 트랙별 즐겨찾기 누적 캐시
 export const favCacheMap = {};
 
-export async function checkIsFavorite(trackId, fallback) {
+export async function checkIsFavorite(trackId) {
   const uri = `spotify:track:${trackId}`;
   const response = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uri)}`);
   if (!response.ok) {
     if (response.status === 403) console.warn('[Spotify] checkIsFavorite 403 — skipping');
     else if (response.status === 429) console.warn('[Spotify] checkIsFavorite rate limited (429)');
     else console.error('checkIsFavorite failed:', response.status, await response.text().catch(() => ''));
-    return fallback;
+    return null;
   }
   const data = await response.json();
   return data[0] === true;
@@ -126,20 +126,25 @@ export async function getRecentlyPlayed() {
     trackId: i.track.id,
     name: i.track.name,
     artist: (i.track.artists || []).map(a => a.name).join(', '),
+    playedAt: i.played_at,
   }));
 
   // 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
   const uncachedTrackIds = [...new Set(
     tracks.filter(t => !(t.trackId in favCacheMap)).map(t => t.trackId)
   )];
-  if (uncachedTrackIds.length > 0) {
-    const uris = uncachedTrackIds.map(id => `spotify:track:${id}`).join(',');
+  const CONTAINS_CHUNK_SIZE = 5;
+  for (let i = 0; i < uncachedTrackIds.length; i += CONTAINS_CHUNK_SIZE) {
+    const chunk = uncachedTrackIds.slice(i, i + CONTAINS_CHUNK_SIZE);
+    const uris = chunk.map(id => `spotify:track:${id}`).join(',');
     const favResp = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uris)}`);
     if (favResp.ok) {
       const favData = await favResp.json();
-      uncachedTrackIds.forEach((trackId, i) => {
-        favCacheMap[trackId] = favData[i] === true;
+      chunk.forEach((trackId, j) => {
+        favCacheMap[trackId] = favData[j] === true;
       });
+    } else {
+      console.error('[Spotify] batch contains chunk FAILED', favResp.status, await favResp.text().catch(() => ''));
     }
   }
 

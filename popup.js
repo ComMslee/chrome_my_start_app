@@ -1,4 +1,4 @@
-import { formatTime } from './utils.js';
+import { formatTime, formatRelativeTime } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -288,7 +288,8 @@ function renderList(items, emptyText, type) {
 
       if (type === 'recent' && item.trackId) {
         const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
-        div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+        const playedAt = formatRelativeTime(item.playedAt);
+        div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span><span class="list-played-at">${playedAt}</span>`;
       } else {
         div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
       }

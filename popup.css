@@ -344,8 +344,8 @@ body {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  padding: 3px 4px;
-  font-size: 11px;
+  padding: 5px 4px;
+  font-size: 13px;
   color: #b3b3b3;
   border-radius: 3px;
 }
@@ -375,7 +375,7 @@ body {
   background: none;
   border: none;
   color: #535353;
-  font-size: 12px;
+  font-size: 16px;
   cursor: pointer;
   padding: 0 2px;
   flex-shrink: 0;
@@ -391,6 +391,14 @@ body {
 
 .list-fav:disabled {
   opacity: 0.5;
+}
+
+.list-played-at {
+  color: #535353;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .list-empty {

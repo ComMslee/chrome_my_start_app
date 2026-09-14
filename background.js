@@ -71,11 +71,14 @@ async function pollPlaybackState() {
     const trackId = playback.item.id;
     let isFavorite = lastFavoriteResult;
     if (trackId !== lastCheckedTrackId) {
-      isFavorite = await checkIsFavorite(trackId, lastFavoriteResult);
-      lastCheckedTrackId = trackId;
-      lastFavoriteResult = isFavorite;
-      favCacheMap[trackId] = isFavorite;
-      chrome.storage.local.set({ _favCache: { trackId, result: isFavorite } });
+      const checked = await checkIsFavorite(trackId);
+      if (checked !== null) {
+        isFavorite = checked;
+        lastCheckedTrackId = trackId;
+        lastFavoriteResult = isFavorite;
+        favCacheMap[trackId] = isFavorite;
+        chrome.storage.local.set({ _favCache: { trackId, result: isFavorite } });
+      }
     }
 
     const state = {
