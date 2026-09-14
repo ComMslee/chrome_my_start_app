@@ -31,6 +31,7 @@ const els = {
   refreshBtn: $('refresh-btn'),
   nextPollCountdown: $('next-poll-countdown'),
   recentBtn: $('recent-btn'),
+  recentBtnNop: $('recent-btn-nop'),
   queueBtn: $('queue-btn'),
   listContainer: $('list-container'),
 };
@@ -76,6 +77,8 @@ function updateCountdown() {
 
 function updateUI(state) {
   if (!state) {
+    currentState = null;
+    if (activeList === 'queue') closeList();
     showView('noPlayback');
     stopProgressTimer();
     return;
@@ -174,6 +177,7 @@ async function withProcessing(fn) {
 async function doLogout() {
   try {
     await sendMessage({ type: 'logout' });
+    closeList();
     showView('login');
   } catch (err) { console.error('Logout error:', err); }
 }
@@ -269,6 +273,7 @@ function closeList() {
   els.listContainer.classList.add('hidden');
   els.listContainer.innerHTML = '';
   els.recentBtn.classList.remove('active');
+  els.recentBtnNop.classList.remove('active');
   els.queueBtn.classList.remove('active');
 }
 
@@ -359,6 +364,7 @@ async function toggleList(type) {
   }
   activeList = type;
   els.recentBtn.classList.toggle('active', type === 'recent');
+  els.recentBtnNop.classList.toggle('active', type === 'recent');
   els.queueBtn.classList.toggle('active', type === 'queue');
   els.listContainer.innerHTML = '<div class="list-empty">...</div>';
   els.listContainer.classList.remove('hidden');
@@ -367,6 +373,7 @@ async function toggleList(type) {
 
 els.queueBtn.addEventListener('click', () => toggleList('queue'));
 els.recentBtn.addEventListener('click', () => toggleList('recent'));
+els.recentBtnNop.addEventListener('click', () => toggleList('recent'));
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);
 });

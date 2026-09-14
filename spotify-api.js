@@ -119,7 +119,7 @@ export async function playTrack(uri) {
 }
 
 export async function getRecentlyPlayed() {
-  const response = await spotifyFetch('/me/player/recently-played?limit=5');
+  const response = await spotifyFetch('/me/player/recently-played?limit=50');
   if (!response.ok) return { items: [] };
   const data = await response.json();
   const tracks = (data.items || []).filter(i => i.track?.type === 'track').map(i => ({
@@ -129,13 +129,17 @@ export async function getRecentlyPlayed() {
   }));
 
   // 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
-  const uncached = tracks.filter(t => !(t.trackId in favCacheMap));
-  if (uncached.length > 0) {
-    const uris = uncached.map(t => `spotify:track:${t.trackId}`).join(',');
+  const uncachedTrackIds = [...new Set(
+    tracks.filter(t => !(t.trackId in favCacheMap)).map(t => t.trackId)
+  )];
+  if (uncachedTrackIds.length > 0) {
+    const uris = uncachedTrackIds.map(id => `spotify:track:${id}`).join(',');
     const favResp = await spotifyFetch(`/me/library/contains?uris=${encodeURIComponent(uris)}`);
     if (favResp.ok) {
       const favData = await favResp.json();
-      uncached.forEach((t, i) => { favCacheMap[t.trackId] = favData[i] === true; });
+      uncachedTrackIds.forEach((trackId, i) => {
+        favCacheMap[trackId] = favData[i] === true;
+      });
     }
   }
 
