@@ -55,7 +55,7 @@
       </div>
 
       <!-- Row 1: 이전 리스트 -->
-      <button id="recent-btn" class="btn-icon btn-list grid-recent" title="이전 리스트">
+      <button id="recent-btn" class="btn-icon btn-list grid-recent" title="최근 재생 50곡">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
       </button>
       <!-- Row 2: 다음 리스트 -->
@@ -64,8 +64,6 @@
       </button>
     </div>
 
-    <!-- 리스트 컨테이너 -->
-    <div id="list-container" class="list-container hidden"></div>
   </div>
 
   <div id="no-playback-view" class="view hidden">
@@ -77,6 +75,9 @@
         <span class="no-playback-text">재생 중인 곡 없음</span>
         <div class="nop-right">
           <span id="next-poll-countdown" class="countdown-text"></span>
+          <button id="recent-btn-nop" class="btn-icon btn-list" title="최근 재생 50곡">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+          </button>
           <button id="refresh-btn" class="btn-icon btn-refresh" title="새로고침">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
@@ -84,6 +85,9 @@
       </div>
     </div>
   </div>
+
+  <!-- 재생 상태와 무관하게 사용하는 공용 리스트 -->
+  <div id="list-container" class="list-container hidden"></div>
 
   <div id="loading-view" class="view">
     <div class="loading-spinner"></div>
