@@ -118,22 +118,19 @@ export async function playTrack(uri) {
   return response.ok || response.status === 204;
 }
 
-export async function getRecentlyPlayed() {
-  const response = await spotifyFetch('/me/player/recently-played?limit=50');
-  if (!response.ok) return { items: [] };
-  const data = await response.json();
-  const tracks = (data.items || []).filter(i => i.track?.type === 'track').map(i => ({
-    trackId: i.track.id,
-    name: i.track.name,
-    artist: (i.track.artists || []).map(a => a.name).join(', '),
-    playedAt: i.played_at,
-  }));
+export async function addToQueue(uri) {
+  const response = await spotifyFetch(`/me/player/queue?uri=${encodeURIComponent(uri)}`, {
+    method: 'POST',
+  });
+  return response.ok || response.status === 204;
+}
 
-  // 즐겨찾기 확인 (캐시에 없는 것만 API 호출)
+// 즐겨찾기 확인 (캐시에 없는 것만 API 호출, favCacheMap에 채워넣음)
+const CONTAINS_CHUNK_SIZE = 5;
+async function batchCheckFavorites(trackIds) {
   const uncachedTrackIds = [...new Set(
-    tracks.filter(t => !(t.trackId in favCacheMap)).map(t => t.trackId)
+    trackIds.filter(id => !(id in favCacheMap))
   )];
-  const CONTAINS_CHUNK_SIZE = 5;
   for (let i = 0; i < uncachedTrackIds.length; i += CONTAINS_CHUNK_SIZE) {
     const chunk = uncachedTrackIds.slice(i, i + CONTAINS_CHUNK_SIZE);
     const uris = chunk.map(id => `spotify:track:${id}`).join(',');
@@ -147,6 +144,70 @@ export async function getRecentlyPlayed() {
       console.error('[Spotify] batch contains chunk FAILED', favResp.status, await favResp.text().catch(() => ''));
     }
   }
+}
+
+// ---- Search ----
+
+export async function searchTracks(query, limit = 10) {
+  const q = (query || '').trim();
+  if (!q) return { items: [] };
+  const params = new URLSearchParams({ q, type: 'track', limit: String(limit) });
+  const response = await spotifyFetch(`/search?${params.toString()}`);
+  if (!response.ok) return { items: [] };
+  const data = await response.json();
+  const tracks = (data.tracks?.items || []).filter(t => t && t.id);
+
+  await batchCheckFavorites(tracks.map(t => t.id));
+
+  return {
+    items: tracks.map(t => ({
+      trackId: t.id,
+      uri: t.uri,
+      name: t.name,
+      artist: (t.artists || []).map(a => a.name).join(', '),
+      isFavorite: favCacheMap[t.id] ?? false,
+    })),
+  };
+}
+
+const RECENT_TARGET = 50;
+const RECENT_MAX_PAGES = 5;
+
+export async function getRecentlyPlayed() {
+  // recently-played는 곡 목록이 아니라 재생 이벤트 목록이라 같은 곡이 중복으로 내려온다.
+  // 중복을 제거한 뒤 목표 개수를 채울 때까지 before 커서로 이전 페이지를 더 받아온다.
+  const seen = new Set();
+  const tracks = [];
+  let before = null;
+
+  for (let page = 0; page < RECENT_MAX_PAGES && tracks.length < RECENT_TARGET; page++) {
+    const query = before ? `?limit=50&before=${before}` : '?limit=50';
+    const response = await spotifyFetch(`/me/player/recently-played${query}`);
+    if (!response.ok) break;
+    const data = await response.json();
+    const events = data.items || [];
+    if (events.length === 0) break;
+
+    for (const i of events) {
+      if (i.track?.type !== 'track' || seen.has(i.track.id)) continue;
+      seen.add(i.track.id);
+      tracks.push({
+        trackId: i.track.id,
+        name: i.track.name,
+        artist: (i.track.artists || []).map(a => a.name).join(', '),
+        playedAt: i.played_at,
+      });
+      if (tracks.length >= RECENT_TARGET) break;
+    }
+
+    // 응답은 최신순이므로 마지막(가장 오래된) 항목 시각을 다음 페이지 커서로 사용
+    const oldestPlayedAt = events[events.length - 1]?.played_at;
+    const next = oldestPlayedAt ? Date.parse(oldestPlayedAt) : NaN;
+    if (!Number.isFinite(next) || next === before) break;
+    before = next;
+  }
+
+  await batchCheckFavorites(tracks.map(t => t.trackId));
 
   const items = tracks.map(t => ({
     ...t,

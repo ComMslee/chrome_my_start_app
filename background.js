@@ -8,7 +8,7 @@ import { startAuthFlow, logout, getValidToken } from './spotify-auth.js';
 import {
   spotifyFetch, getCurrentPlayback, controlPlayback, seekToPosition,
   checkIsFavorite, toggleFavorite, favCacheMap,
-  getQueue, getRecentlyPlayed, playTrack,
+  getQueue, getRecentlyPlayed, playTrack, addToQueue, searchTracks,
 } from './spotify-api.js';
 
 // 서비스 워커 재시작 시 storage에서 복원
@@ -215,6 +215,15 @@ async function handleMessage(message) {
     case 'seek':
       await seekToPosition(message.positionMs);
       return { success: true };
+
+    case 'search':
+      return await searchTracks(message.query);
+
+    case 'addToQueue': {
+      const ok = await addToQueue(message.uri);
+      if (!ok) return { error: '대기열 추가 실패' };
+      return { success: true };
+    }
 
     case 'isLoggedIn': {
       const stored = await chrome.storage.local.get(['accessToken']);
