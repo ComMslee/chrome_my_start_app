@@ -33,6 +33,7 @@ const els = {
   recentBtn: $('recent-btn'),
   recentBtnNop: $('recent-btn-nop'),
   queueBtn: $('queue-btn'),
+  searchBtn: $('search-btn'),
   listContainer: $('list-container'),
 };
 
@@ -40,8 +41,10 @@ let currentState = null;
 let countdownTimer = null;
 let progressTimer = null;
 let isProcessing = false;
-let activeList = null; // 'queue' | 'recent' | null
+let activeList = null; // 'queue' | 'recent' | 'search' | null
 let prevTrackId = null;
+let searchDebounceTimer = null;
+let searchSeq = 0; // 오래된 검색 응답이 최신 결과를 덮어쓰지 않도록
 
 function showView(name) {
   Object.values(views).forEach(v => v.classList.add('hidden'));
@@ -112,9 +115,9 @@ function updateUI(state) {
   updateProgress(state.progressMs, state.durationMs);
   els.totalTime.textContent = formatTime(state.durationMs);
 
-  // 곡이 바뀌면 열려있는 리스트 갱신
+  // 곡이 바뀌면 열려있는 큐/최근재생 리스트 갱신 (검색 결과는 곡 변경과 무관하므로 제외)
   if (prevTrackId && state.trackId !== prevTrackId) {
-    if (activeList) fetchList(activeList);
+    if (activeList === 'queue' || activeList === 'recent') fetchList(activeList);
   }
   prevTrackId = state.trackId;
 
@@ -226,8 +229,8 @@ els.favoriteBtn.addEventListener('click', () => withProcessing(async () => {
   try {
     const response = await sendMessage({ type: 'toggleFavorite' });
     updateUI(response.state);
-    // 열려있는 이전 리스트에서 같은 트랙의 ♥ DOM 직접 갱신
-    if (activeList === 'recent') {
+    // 열려있는 이전 리스트/검색 결과에서 같은 트랙의 ♥ DOM 직접 갱신
+    if (activeList === 'recent' || activeList === 'search') {
       const btn = els.listContainer.querySelector(`.list-fav[data-track-id="${response.state.trackId}"]`);
       if (btn) {
         btn.dataset.fav = String(response.state.isFavorite);
@@ -270,11 +273,14 @@ async function init() {
 
 function closeList() {
   activeList = null;
+  clearTimeout(searchDebounceTimer);
+  searchSeq++; // 진행 중이던 검색 응답 무효화
   els.listContainer.classList.add('hidden');
   els.listContainer.innerHTML = '';
   els.recentBtn.classList.remove('active');
   els.recentBtnNop.classList.remove('active');
   els.queueBtn.classList.remove('active');
+  els.searchBtn.classList.remove('active');
 }
 
 function renderList(items, emptyText, type) {
@@ -282,16 +288,17 @@ function renderList(items, emptyText, type) {
   if (!items || items.length === 0) {
     els.listContainer.innerHTML = `<div class="list-empty">${emptyText}</div>`;
   } else {
-    items.forEach(item => {
+    items.forEach((item, idx) => {
       const div = document.createElement('div');
       div.className = 'list-item';
+      const index = `<span class="list-index">${idx + 1}</span>`;
 
       if (type === 'recent' && item.trackId) {
         const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
         const playedAt = formatRelativeTime(item.playedAt);
-        div.innerHTML = `<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span><span class="list-played-at">${playedAt}</span>`;
+        div.innerHTML = `${index}<button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span><span class="list-played-at">${playedAt}</span>`;
       } else {
-        div.innerHTML = `<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
+        div.innerHTML = `${index}<span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span>`;
       }
 
       // 대기열 곡 클릭 → 바로 재생
@@ -367,16 +374,140 @@ async function toggleList(type) {
   els.recentBtn.classList.toggle('active', type === 'recent');
   els.recentBtnNop.classList.toggle('active', type === 'recent');
   els.queueBtn.classList.toggle('active', type === 'queue');
-  els.listContainer.innerHTML = '<div class="list-empty">...</div>';
+  els.searchBtn.classList.toggle('active', type === 'search');
   els.listContainer.classList.remove('hidden');
+
+  if (type === 'search') {
+    openSearch();
+    return;
+  }
+  els.listContainer.innerHTML = '<div class="list-empty">...</div>';
   await fetchList(type);
 }
 
 els.queueBtn.addEventListener('click', () => toggleList('queue'));
 els.recentBtn.addEventListener('click', () => toggleList('recent'));
 els.recentBtnNop.addEventListener('click', () => toggleList('recent'));
+els.searchBtn.addEventListener('click', () => toggleList('search'));
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.playbackState) updateUI(changes.playbackState.newValue);
 });
+
+// ---- Search ----
+
+function openSearch() {
+  els.listContainer.innerHTML = `
+    <input type="text" id="search-input" class="search-input" placeholder="곡, 아티스트 검색" autocomplete="off">
+    <div id="search-results"></div>
+  `;
+  const input = els.listContainer.querySelector('#search-input');
+  input.focus();
+  input.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    const query = input.value;
+    if (!query.trim()) {
+      renderSearchResults([]);
+      return;
+    }
+    searchDebounceTimer = setTimeout(() => performSearch(query), 300);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(searchDebounceTimer);
+      performSearch(input.value);
+    }
+  });
+  renderSearchResults([]);
+}
+
+async function performSearch(query) {
+  const seq = ++searchSeq;
+  const results = els.listContainer.querySelector('#search-results');
+  if (results) results.innerHTML = `<div class="list-empty">검색 중...</div>`;
+  try {
+    const res = await sendMessage({ type: 'search', query });
+    if (activeList !== 'search' || seq !== searchSeq) return; // 검색창이 닫혔거나 최신 요청이 아니면 무시
+    renderSearchResults(res.items);
+  } catch (err) {
+    console.error('[popup] search error:', err);
+    if (activeList === 'search' && seq === searchSeq) {
+      const el = els.listContainer.querySelector('#search-results');
+      if (el) el.innerHTML = `<div class="list-empty">검색 실패</div>`;
+    }
+  }
+}
+
+function renderSearchResults(items) {
+  const results = els.listContainer.querySelector('#search-results');
+  if (!results) return;
+  results.innerHTML = '';
+  if (!items || items.length === 0) {
+    results.innerHTML = `<div class="list-empty">검색어를 입력하세요</div>`;
+    return;
+  }
+  items.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    const favClass = item.isFavorite ? 'list-fav active' : 'list-fav';
+    div.innerHTML = `<span class="list-index">${idx + 1}</span><button class="${favClass}" data-track-id="${item.trackId}" data-fav="${item.isFavorite}" title="즐겨찾기">♥</button><span class="list-track">${item.name}</span><span class="list-artist">${item.artist}</span><div class="search-item-actions"><button class="search-action-btn play" title="바로 재생">재생</button><button class="search-action-btn queue" title="다음 재생에 추가">+대기열</button></div>`;
+
+    const favBtn = div.querySelector('.list-fav');
+    const playBtn = div.querySelector('.play');
+    const queueBtn = div.querySelector('.queue');
+
+    favBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const trackId = favBtn.dataset.trackId;
+      const isFav = favBtn.dataset.fav === 'true';
+      favBtn.disabled = true;
+      try {
+        const res = await sendMessage({ type: 'toggleRecentFavorite', trackId, isFavorite: isFav });
+        if (res.success) {
+          favBtn.dataset.fav = String(res.newState);
+          favBtn.classList.toggle('active', res.newState);
+        }
+      } catch (err) {
+        console.error('[popup] toggleFavorite(search) error:', err);
+      } finally {
+        favBtn.disabled = false;
+      }
+    });
+
+    playBtn.addEventListener('click', async () => {
+      playBtn.disabled = true;
+      queueBtn.disabled = true;
+      try {
+        const res = await sendMessage({ type: 'playTrack', uri: item.uri });
+        if (res.state) updateUI(res.state);
+        closeList();
+      } catch (err) {
+        console.error('[popup] playTrack error:', err);
+        playBtn.disabled = false;
+        queueBtn.disabled = false;
+      }
+    });
+
+    queueBtn.addEventListener('click', async () => {
+      playBtn.disabled = true;
+      queueBtn.disabled = true;
+      const originalText = queueBtn.textContent;
+      try {
+        const res = await sendMessage({ type: 'addToQueue', uri: item.uri });
+        queueBtn.textContent = res.success ? '추가됨' : '실패';
+      } catch (err) {
+        console.error('[popup] addToQueue error:', err);
+        queueBtn.textContent = '실패';
+      } finally {
+        playBtn.disabled = false;
+        setTimeout(() => {
+          queueBtn.textContent = originalText;
+          queueBtn.disabled = false;
+        }, 1200);
+      }
+    });
+
+    results.appendChild(div);
+  });
+}
 
 init();

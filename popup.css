@@ -86,7 +86,7 @@ body {
 .player-grid {
   display: grid;
   grid-template-columns: auto 1fr auto 8px auto 8px auto;
-  grid-template-rows: 22px 24px;
+  grid-template-rows: 22px 24px 14px;
   gap: 2px 0;
   align-items: center;
 }
@@ -133,6 +133,62 @@ body {
 .grid-queue {
   grid-column: 5;
   grid-row: 2;
+}
+
+.grid-search {
+  grid-column: 1;
+  grid-row: 3;
+  padding-right: 14px;
+}
+
+.grid-progress {
+  grid-column: 2 / 6;
+  grid-row: 3;
+}
+
+#progress-bar {
+  position: relative;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+#progress-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #404040;
+  border-radius: 2px;
+}
+
+#progress-filled {
+  position: relative;
+  height: 3px;
+  width: 0%;
+  background: #1DB954;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+#progress-handle {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.1s;
+  pointer-events: none;
+}
+
+#progress-bar:hover #progress-handle {
+  opacity: 1;
 }
 
 .favorite-btn {
@@ -354,6 +410,15 @@ body {
   background: #282828;
 }
 
+.list-index {
+  color: #535353;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .list-track {
   color: #e0e0e0;
   white-space: nowrap;
@@ -406,4 +471,54 @@ body {
   color: #535353;
   font-size: 11px;
   padding: 12px 0;
+}
+
+/* ---- Search ---- */
+
+.search-input {
+  width: 100%;
+  background: #282828;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.search-input:focus {
+  outline: 1px solid #1DB954;
+}
+
+.search-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.search-action-btn {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 3px;
+  color: #b3b3b3;
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-action-btn:hover {
+  border-color: #1DB954;
+  color: #1DB954;
+}
+
+.search-action-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.search-action-btn.play {
+  color: #1DB954;
+  border-color: #1DB954;
 }
